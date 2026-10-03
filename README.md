@@ -19,6 +19,10 @@
 4. 点击环境名称或右侧 ✓，为当前工作区选择解释器；也可通过 Python 扩展右下角的解释器入口或官方 Python Environments 面板切换。多文件夹工作区会提示选择目标文件夹。
 5. 正常使用 **Python: Run Python File in Terminal**、Pylance 和 Python Debugger。编辑器原有运行按钮的下拉菜单也提供 **在 Micromamba 环境中运行 Python 文件**；此命令使用该环境运行文件并在 Task 终端展示输出。它在当前文件选用了 Micromamba Python 环境时显示，也可从命令面板调用。新建终端默认静默加载该文件夹选定的环境，不再显示激活脚本。
 
+选择后会按项目目录自动保存；重开文件夹、重新加载窗口，或改用包含该文件夹的 `.code-workspace`，都会恢复原选择。记录保存在 VS Code 私有存储中，旧版工作区记录会自动迁移。
+
+打开项目、打开 Python 文件和发现环境不会自动绑定 Micromamba，也不会因此创建 `.vscode/settings.json`。只有明确为项目选择环境时，官方 Python Environments 扩展才会写入 `python-envs.defaultEnvManager` 和 `python-envs.defaultPackageManager`；恢复已保存的项目选择时也可能补齐这些设置。旧版已经写入的设置不会自动删除；对于没有保存 Micromamba 选择的项目，可在确认后手动移除这两项，其余配置保留。之前选用过 Micromamba 的项目应先在官方解释器入口切换到其他提供者，以清除保存记录。
+
 Windows 配置示例（路径应替换为你自己的安装位置）：
 
 ```json
@@ -44,7 +48,7 @@ Windows 配置示例（路径应替换为你自己的安装位置）：
 - 原有运行下拉菜单中的 Micromamba 命令也通过 `micromamba run` 启动真实解释器，使用 VS Code Task 面板展示输出；工作目录为文件所在的工作区根目录，无工作区时为文件目录。
 - 对未显式指定解释器的 Python **launch** 调试配置补充解释器和激活环境变量；用户在 `launch.json` 中填写的 `python` / `pythonPath` 和 `env` 优先。
 - 新建终端默认通过 VS Code 的环境变量集合注入 `micromamba run` 得到的激活变量和 PATH，按工作区文件夹区分环境；不发送激活命令，也不清屏或删除历史。也可手动打开激活终端、激活现有终端。
-- 项目选择保存在 VS Code 工作区状态中，不把机器路径写入项目设置。切换到其他提供者的解释器后会停止使用旧的 Micromamba 选择自动激活终端。
+- 项目选择按目录 URI 保存在 VS Code 私有存储中，不把解释器路径写入项目设置；只恢复当前工作区包含的项目，各文件夹相互独立。启动时的临时未选择状态不会清除记录；环境暂不可用时保留记录并在日志中提示。切换到其他提供者的解释器后会清除该项目的 Micromamba 选择，停止使用旧环境自动激活终端。
 
 创建 / 安装操作显示进度和实时日志，可以取消。同一环境的修改会排队；删除环境和卸载软件包需要在插件界面确认，base 根目录禁止删除。取消不能撤销 micromamba 已经完成的部分更改。
 
@@ -96,6 +100,8 @@ Windows 本机集成测试可执行 `./scripts/test-host.ps1 -Fresh`，它复制
 
 ## 验证和范围
 
+运行 `./scripts/test-lifecycle.ps1` 可在独立用户数据与全新项目中验证：未选择环境时不生成设置文件、首次选择、关闭重开、窗口重载、改用 `.code-workspace`、多文件夹隔离，以及切换到其他提供者后的重开行为。配置只写入测试用户目录，测试项目在选择前没有 `.vscode/`。脚本使用本机 `D:\develop\micromamba` 中的 `pytorch` 环境与 MSYS2 的系统 Python；在其他机器上请调整路径和断言。
+
 自动化测试覆盖 JSON 兼容、包来源识别、目录边界、输入校验、shell 引号、无 shell 的进程执行和取消 / 超时。Extension Host 集成测试在隔离的 VS Code 用户数据和测试工作区中检查真实 micromamba 环境注册、软件包列表和 Python 扩展的解释器选择；不会创建、删除或修改现有 Python 环境。
 
 手工验收建议：选择环境后，用 Python 官方运行命令和运行下拉菜单中的 Micromamba 命令执行下面的代码，再在新终端执行 `python -c "import sys; print(sys.executable)"`，三者都应指向选择的环境：
@@ -113,7 +119,7 @@ print(sys.prefix)
 - Microsoft Python Environments 扩展的额外“终端自动激活”行为随版本变化。如果出现重复激活，可将 `python-envs.terminal.autoActivationType` 设为 `off`，保留本插件的自动激活；旧 Python 扩展对应设置为 `python.terminal.activateEnvironment`。
 - 若 `python.useEnvironmentsExtension` 被关闭，插件会提供“启用并重新加载”按钮，也可在设置中手动启用。此首版依赖现代 Python Environments API；没有静默退回到仅修改默认解释器路径的模式。
 - CMD 路径含 `%` 或双引号时请使用 PowerShell。Linux / macOS 的 shell 命令已做参数引用测试，需要在对应系统完成实机验收。
-- 工作区外的 Python 文件使用窗口选择；多文件夹项目优先按终端 cwd / 文件所属工作区匹配。Remote / WSL 环境中，插件和 micromamba 必须运行在同一个远程主机上。虚拟和不受信任工作区不启用此插件。
+- 没有打开工作区时可选择当前空窗口的环境；窗口选择不会作为其他项目的默认值，工作区外的文件不会继承工作区内项目的选择。多文件夹项目优先按终端 cwd / 文件所属工作区匹配。Remote / WSL 环境中，插件和 micromamba 必须运行在同一个远程主机上，保存记录会区分 URI 协议和远程主机。虚拟和不受信任工作区不启用此插件。
 - Notebook 内核由 Jupyter 扩展管理，首版不保证自动切换已有 Notebook 的内核；请在 Notebook 的内核选择器中选择对应环境。
 - Code Runner 等其他扩展有独立的运行配置；这里对接的是 Microsoft Python 的运行 / 调试链路。
 

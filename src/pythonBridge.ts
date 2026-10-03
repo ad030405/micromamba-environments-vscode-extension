@@ -6,7 +6,7 @@ import { PythonEnvironments, PythonEnvironmentApi, PythonEnvironment, Environmen
     PackageManagementOptions, GetPackagesOptions, Package } from '@vscode/python-environments';
 import { MambaEnvironment, samePath, debugEnvironment } from './core';
 import { Micromamba } from './micromamba';
-import { Selections } from './selection';
+import { containsUri, selectionKey, Selections } from './selection';
 
 export interface EnvironmentActions {
     create(scope?: CreateEnvironmentScope, options?: CreateEnvironmentOptions): Promise<MambaEnvironment | undefined>;
@@ -30,7 +30,8 @@ export class PythonBridge implements vscode.Disposable {
     private readonly environmentCache = new Map<string, { signature: string; item: PythonEnvironment }>();
     private readonly packageCache = new Map<string, Package[]>();
     private readonly savedSelections: { scope?: vscode.Uri; prefix: string }[];
-    private restoring: boolean;
+    private restoring = true;
+    private readonly selectionRevisions = new Map<string, number>();
     private disposed = false;
     readonly manager: EnvironmentManager;
     readonly packageManager: PackageManager;
@@ -40,7 +41,6 @@ export class PythonBridge implements vscode.Disposable {
     constructor(private readonly service: Micromamba, private readonly selections: Selections,
         private readonly extensionId: string, actions: EnvironmentActions) {
         this.savedSelections = selections.saved();
-        this.restoring = this.savedSelections.length > 0;
         this.manager = {
             name: 'micromamba', displayName: 'Micromamba', tooltip: t('Micromamba Python environments'),
             preferredPackageManagerId: `${extensionId}:micromamba`, iconPath: new vscode.ThemeIcon('server-environment'), log: service.log,
@@ -57,9 +57,16 @@ export class PythonBridge implements vscode.Disposable {
             },
             set: async (scope: SetEnvironmentScope, environment?: PythonEnvironment) => {
                 this.service.log.debug(t("Environment manager set: {0} → {1}", Array.isArray(scope) ? scope.map((uri) => uri.fsPath).join(', ') : scope?.fsPath ?? '<window>', environment?.name ?? '<unset>'));
-                if (this.disposed || (!environment && this.restoring)) { return; }
+                const scopes = this.scopes(scope);
+                if (this.disposed || !scopes.length || (!environment && this.restoring)) { return; }
+                // The host can rehydrate a fallback from another provider through the
+                // configured manager. It is not a Micromamba selection.
+                if (environment && environment.envId.managerId !== this.managerId) { return; }
+                const revisions = scopes.map((uri) => this.touch(uri));
                 await this.prepareSelection?.(scope, environment ? await this.model(environment) : undefined);
-                await selections.set(scope, environment?.sysPrefix);
+                for (let i = 0; i < scopes.length; i++) {
+                    if (this.revision(scopes[i]) === revisions[i]) { await selections.set(scopes[i], environment?.sysPrefix); }
+                }
                 // The host commits routing/settings and emits its selection event after
                 // set returns. Emitting or synchronizing Python here re-enters that
                 // transaction before the new manager is bound to the project.
@@ -108,12 +115,23 @@ export class PythonBridge implements vscode.Disposable {
             if (this.disposed) { return; }
             this.service.log.debug(t("Official selection changed: {0} → {1}", event.uri?.fsPath ?? '<window>', event.new?.envId.managerId ?? '<unset>'));
             void (async () => {
-                const ownId = `${this.extensionId}:${this.manager.name}`;
-                if (event.new?.envId.managerId === ownId) { await this.selections.set(event.uri, event.new.sysPrefix); }
-                else if (!this.restoring && (event.new || event.old?.envId.managerId === ownId)) { await this.selections.set(event.uri, undefined); }
+                if (!this.scopes(event.uri).length) { return; }
+                const prefix = this.selections.get(event.uri);
+                // Read/discovery events never create records. Our provider's set has
+                // already saved a real selection before the host emits this event.
+                if (event.new?.envId.managerId !== this.managerId && event.new && prefix
+                    && (!this.restoring || event.old?.envId.managerId === this.managerId)
+                    && (event.old?.envId.managerId === this.managerId
+                        || this.service.environments.some((env) => env.pythonPath && samePath(env.prefix, prefix))
+                        || this.projectUsesManager(event.uri, event.new.envId.managerId))) {
+                    this.touch(event.uri);
+                    await this.selections.set(event.uri, undefined);
+                }
                 // Only synchronize the legacy path after the host has committed its
                 // selection. Notifications from other providers belong to those providers.
-                if (event.new?.envId.managerId === ownId) { await this.syncPython(event.new, event.uri); }
+                if (event.new?.envId.managerId === this.managerId && prefix && samePath(prefix, event.new.sysPrefix)) {
+                    await this.syncPython(event.new, event.uri);
+                }
             })().catch((error) => this.service.log.warn(t("Python interpreter synchronization failed: {0}", String(error))));
         }));
         this.publishDiscovery();
@@ -123,18 +141,54 @@ export class PythonBridge implements vscode.Disposable {
         this.service.log.debug(t("Restoring {0} saved project environment selections", this.savedSelections.length));
         if (!this.api) { this.restoring = false; return; }
         try {
+            const revisions = this.savedSelections.map((saved) => this.revision(saved.scope));
             if (this.savedSelections.length) {
                 // Initial auto-discovery runs in the background. Let it settle before
                 // restoring, otherwise its late result can overwrite the user's choice.
                 await this.api.getEnvironments('all');
-                for (const saved of this.savedSelections) { await this.api.getEnvironment(saved.scope); }
             }
-            for (const saved of this.savedSelections) {
+            for (let i = 0; i < this.savedSelections.length; i++) {
+                const saved = this.savedSelections[i];
+                const current = await this.api.getEnvironment(saved.scope);
+                if (this.disposed || this.revision(saved.scope) !== revisions[i]
+                    || !samePath(this.selections.get(saved.scope) ?? '', saved.prefix)) { continue; }
                 const env = this.service.environments.find((item) => samePath(item.prefix, saved.prefix) && item.pythonPath);
-                if (env) { await this.api.setEnvironment(saved.scope, this.item(env)); }
-                else { await this.selections.set(saved.scope, undefined); }
+                if (!env) {
+                    // A disconnected drive or temporary discovery failure must not
+                    // erase the user's project choice.
+                    this.service.log.warn(t('Saved Micromamba environment is unavailable for {0}: {1}. The selection has been kept.', saved.scope?.fsPath ?? '<window>', saved.prefix));
+                    continue;
+                }
+                const item = this.item(env);
+                if (current?.envId.managerId === this.managerId && samePath(current.sysPrefix, env.prefix)) {
+                    await this.prepareSelection?.(saved.scope, env);
+                    if (this.revision(saved.scope) === revisions[i]) { await this.syncPython(item, saved.scope); }
+                } else { await this.api.setEnvironment(saved.scope, item); }
             }
         } finally { this.restoring = false; }
+    }
+
+    private get managerId(): string { return `${this.extensionId}:${this.manager.name}`; }
+
+    private projectUsesManager(scope: vscode.Uri | undefined, managerId: string): boolean {
+        const setting = vscode.workspace.getConfiguration('python-envs', scope).inspect<string>('defaultEnvManager');
+        // A persisted project binding proves a switch even if the old environment
+        // is unavailable. A global/default fallback does not supersede its record.
+        return (setting?.workspaceFolderValue ?? setting?.workspaceValue) === managerId;
+    }
+
+    private scopes(scope: SetEnvironmentScope): (vscode.Uri | undefined)[] {
+        const folders = vscode.workspace.workspaceFolders ?? [];
+        return (Array.isArray(scope) ? scope : [scope]).filter((uri) => uri
+            ? folders.some((folder) => containsUri(folder.uri, uri)) : !folders.length);
+    }
+
+    private revision(scope?: vscode.Uri): number { return this.selectionRevisions.get(selectionKey(scope)) ?? 0; }
+
+    private touch(scope?: vscode.Uri): number {
+        const revision = this.revision(scope) + 1;
+        this.selectionRevisions.set(selectionKey(scope), revision);
+        return revision;
     }
 
     private async syncPython(environment: PythonEnvironment, scope?: vscode.Uri): Promise<void> {
@@ -142,10 +196,12 @@ export class PythonBridge implements vscode.Disposable {
         // (including Pylance) use the environments API, but older tools still read this cache.
         // Don't apply global or per-file selections to an unrelated workspace folder.
         const folder = scope ? vscode.workspace.getWorkspaceFolder(scope) : undefined;
-        if (!scope || !folder || !samePath(folder.uri.fsPath, scope.fsPath)) { return; }
+        if (!scope || !folder || selectionKey(folder.uri) !== selectionKey(scope)) { return; }
+        const revision = this.revision(scope);
         const extension = vscode.extensions.getExtension<PythonExtensionApi>('ms-python.python');
         if (!extension) { return; }
         if (!extension.isActive) { await extension.activate(); }
+        if (this.disposed || this.revision(scope) !== revision || !samePath(this.selections.get(scope) ?? '', environment.sysPrefix)) { return; }
         const api = extension.exports?.environments;
         const python = environment.execInfo.run.executable;
         if (api?.updateActiveEnvironmentPath && !samePath(api.getActiveEnvironmentPath(scope).path, python)) {

@@ -17,6 +17,9 @@ class Emitter<T> {
 }
 class Uri {
     constructor(readonly fsPath: string) {}
+    readonly scheme = 'file';
+    readonly authority = '';
+    get path(): string { return this.fsPath.replace(/\\/g, '/'); }
     static file(file: string): Uri { return new Uri(file); }
     static parse(value: string): Uri { return new Uri(value.slice('fixture:'.length)); }
     toString(): string { return `fixture:${this.fsPath}`; }
@@ -24,7 +27,7 @@ class Uri {
 const config: Record<string, unknown> = {};
 const mock = {
     EventEmitter: Emitter, Uri, ProgressLocation: { Notification: 15 },
-    workspace: { getConfiguration: () => ({ get: (key: string, fallback: unknown) => config[key] ?? fallback }), workspaceFolders: [], getWorkspaceFolder: () => undefined },
+    workspace: { getConfiguration: () => ({ get: (key: string, fallback: unknown) => config[key] ?? fallback }), workspaceFolders: [] as { uri: Uri }[], getWorkspaceFolder: () => undefined },
     window: { activeTextEditor: undefined, withProgress: async (_options: unknown, callback: (progress: unknown, token: unknown) => Promise<unknown>) =>
         callback({}, { onCancellationRequested: () => ({ dispose() {} }) }) },
 };
@@ -99,6 +102,7 @@ test('persists concurrent selections and chooses the deepest matching project wi
     const first = path.resolve('workspace', 'project');
     const second = path.resolve('workspace', 'other');
     const nested = path.join(first, 'nested');
+    mock.workspace.workspaceFolders = [{ uri: Uri.file(first) }, { uri: Uri.file(second) }];
     const uri = (file: string) => Uri.file(file) as unknown as vscode.Uri;
     try {
         await Promise.all([store.set(uri(first), '/envs/one'), store.set(uri(second), '/envs/two')]);
@@ -108,8 +112,8 @@ test('persists concurrent selections and chooses the deepest matching project wi
         await store.set(uri(nested), '/envs/three');
         assert.equal(store.get(uri(path.join(nested, 'app.py'))), '/envs/three');
         await store.forget('/envs/three');
-        assert.equal(store.get(uri(path.join(nested, 'app.py'))), '/envs/one');
+        assert.equal(store.get(uri(path.join(nested, 'app.py'))), undefined, 'Deleting an environment must not silently inherit a different project choice');
         await store.set(undefined, '/envs/window');
-        assert.equal(store.get(uri(path.resolve('outside.py'))), '/envs/window');
+        assert.equal(store.get(uri(path.resolve('outside.py'))), undefined, 'An unrelated resource must not inherit a window choice');
     } finally { store.dispose(); }
 });

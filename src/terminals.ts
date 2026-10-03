@@ -15,7 +15,7 @@ export class Terminals implements vscode.Disposable {
     private readonly revisions = new Map<string, number>();
     private readonly scoped = new Map<string, vscode.EnvironmentVariableCollection>();
     private disposed = false;
-    constructor(private readonly service: Micromamba, private readonly bridge: PythonBridge, private readonly selections: Selections,
+    constructor(private readonly service: Micromamba, private readonly bridge: PythonBridge, selections: Selections,
         private readonly collection: vscode.GlobalEnvironmentVariableCollection) {
         collection.persistent = false;
         collection.clear();
@@ -78,11 +78,6 @@ export class Terminals implements vscode.Disposable {
         for (const uri of Array.isArray(scope) ? scope : [scope]) {
             if (!uri) {
                 if (!folders.length) { targets.add(undefined); }
-                else {
-                    for (const folder of folders) {
-                        if (!this.selections.saved().some((saved) => saved.scope && samePath(saved.scope.fsPath, folder.uri.fsPath))) { targets.add(folder); }
-                    }
-                }
             } else {
                 const folder = vscode.workspace.getWorkspaceFolder(uri);
                 // Terminal collections support workspace-folder scopes, not per-file scopes.

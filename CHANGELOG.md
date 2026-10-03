@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0
+
+- Persist interpreter choices by project directory URI in private VS Code storage, migrate older workspace records, and restore choices across folder and `.code-workspace` windows.
+- Keep discovery read-only, prevent unscoped choices from leaking into projects, and bind project managers only for a selection or restoration of a saved choice.
+- Protect saved choices from startup unset events, missing environments, and stale restoration; respect newer choices and switches to other providers.
+- Add project lifecycle regression tests and GitHub repository, homepage, and issue links to Marketplace metadata.
+
 ## 1.0.0
 
 - Set the Marketplace release version to 1.0.0 and update package references in the installation and publishing guides.

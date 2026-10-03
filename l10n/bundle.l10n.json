@@ -101,5 +101,6 @@
   "Enable Microsoft Python Environments to integrate micromamba interpreters.": "Enable Microsoft Python Environments to integrate micromamba interpreters.",
   "Enable and Reload": "Enable and Reload",
   "Micromamba Environments started.": "Micromamba Environments started.",
-  "Environment YAML": "Environment YAML"
+  "Environment YAML": "Environment YAML",
+  "Saved Micromamba environment is unavailable for {0}: {1}. The selection has been kept.": "Saved Micromamba environment is unavailable for {0}: {1}. The selection has been kept."
 }

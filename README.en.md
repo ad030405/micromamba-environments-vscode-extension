@@ -19,6 +19,10 @@ Requires VS Code **1.110 or later**, an existing Micromamba installation, and Mi
 4. Click an environment name or the ✓ icon next to it to select the interpreter for the current workspace. You can also switch using the Python extension's interpreter selector in the lower-right corner or the official Python Environments panel. In a multi-folder workspace, you will be prompted to choose the target folder.
 5. Use **Python: Run Python File in Terminal**, Pylance, and Python Debugger as usual. The editor's existing Run dropdown also includes **Run Python File with Micromamba**, which runs the file in the selected environment and displays output in a Task terminal. This command appears when the current file uses a Micromamba Python environment and is also available from the Command Palette. New terminals load the selected environment for their folder silently by default, without displaying the activation script.
 
+Your selection is saved per project directory and restored when you reopen the folder, reload the window, or open a `.code-workspace` containing that folder. Records live in VS Code's private storage; records from older versions are migrated automatically.
+
+Opening a project or a Python file and discovering environments do not automatically bind Micromamba or create `.vscode/settings.json`. When you explicitly select an environment for a project, the official Python Environments extension writes `python-envs.defaultEnvManager` and `python-envs.defaultPackageManager`. Restoring a saved project selection may also restore these settings. Existing settings from older versions are kept; for a project without a saved Micromamba choice, you can review and remove those two entries manually while keeping other settings. If the project previously used Micromamba, switch to another provider through the official interpreter selector first to clear its saved record.
+
 Example Windows configuration (replace the paths with your own installation locations):
 
 ```json
@@ -44,7 +48,7 @@ When the executable path is empty, the extension checks `MAMBA_EXE`, `PATH`, and
 - Run the Micromamba command in the existing Run dropdown through `micromamba run`, using the actual interpreter and displaying output in VS Code's Task panel. The working directory is the file's workspace root, or its containing directory when no workspace is open.
 - Provide an interpreter and activation environment variables for Python **launch** debug configurations that do not explicitly specify an interpreter. The user's `python` / `pythonPath` and `env` values in `launch.json` take precedence.
 - Inject activation variables and PATH obtained from `micromamba run` into new terminals through VS Code's environment variable collections, scoped to each workspace folder. No activation command is sent, and the terminal is not cleared or its history removed. You can also open an activated terminal or activate an existing terminal manually.
-- Persist project selections in VS Code's workspace state without writing machine-specific paths to project settings. Switching to an interpreter from another provider stops automatic terminal activation using the previous Micromamba selection.
+- Persist project selections by directory URI in VS Code's private storage without writing interpreter paths to project settings. Restore only projects in the current workspace, with independent choices for each folder. Temporary unset states during startup do not erase records; unavailable environments keep their records and produce a log message. Switching to an interpreter from another provider clears that project's Micromamba choice and stops automatic terminal activation using the old environment.
 
 Creation and installation operations show progress and live logs and can be cancelled. Changes to the same environment are queued. Deleting environments and uninstalling packages require confirmation in the extension UI; deletion of the base root environment is blocked. Cancellation cannot undo changes micromamba has already completed.
 
@@ -96,6 +100,8 @@ For local Windows integration testing, run `./scripts/test-host.ps1 -Fresh`. It 
 
 ## Validation and scope
 
+Run `./scripts/test-lifecycle.ps1` with isolated user data and fresh projects to check that no settings file is created before selection, along with first selection, close/reopen, window reload, opening through `.code-workspace`, multi-folder isolation, and reopening after switching providers. Test configuration lives in the isolated user directory, and projects have no `.vscode/` before selection. The script uses `pytorch` under the local `D:\develop\micromamba` installation and MSYS2's system Python; adjust paths and assertions on another machine.
+
 Automated tests cover JSON compatibility, package source detection, directory boundaries, input validation, shell quoting, process execution without a shell, cancellation, and timeouts. Extension Host integration tests use isolated VS Code user data and test workspaces to check real micromamba environment registration, package lists, and interpreter selection in the Python extension. They do not create, delete, or modify existing Python environments.
 
 For manual validation, select an environment and run the following code with both the official Python run command and the Micromamba command in the Run dropdown. Then run `python -c "import sys; print(sys.executable)"` in a new terminal. All three should use the selected environment:
@@ -113,7 +119,7 @@ Next, check that Pylance resolves installed packages and press F5 to verify debu
 - The additional terminal auto-activation behavior in Microsoft's Python Environments extension varies by version. If activation happens twice, set `python-envs.terminal.autoActivationType` to `off` and keep this extension's automatic activation enabled. The corresponding setting in the legacy Python extension is `python.terminal.activateEnvironment`.
 - If `python.useEnvironmentsExtension` is disabled, the extension offers an **Enable and Reload** button. You can also enable it manually in Settings. This initial release depends on the modern Python Environments API and does not silently fall back to only changing the default interpreter path.
 - Use PowerShell if a CMD path contains `%` or double quotes. Shell commands for Linux / macOS have argument quoting tests, but still require validation on those systems.
-- Python files outside the workspace use the window-level selection. Multi-folder projects match terminals by cwd and files by their workspace folder. In Remote / WSL environments, the extension and micromamba must run on the same remote host. The extension is disabled in virtual and untrusted workspaces.
+- An empty window can have its own environment selection. That selection is never a default for other projects, and files outside a workspace do not inherit selections from projects inside it. Multi-folder projects match terminals by cwd and files by their workspace folder. In Remote / WSL environments, the extension and micromamba must run on the same remote host; saved records distinguish URI schemes and remote hosts. The extension is disabled in virtual and untrusted workspaces.
 - Notebook kernels are managed by the Jupyter extension. The initial release does not guarantee automatic switching of existing Notebook kernels; select the corresponding environment in the Notebook kernel picker.
 - Other extensions, such as Code Runner, have separate execution settings. This extension integrates with Microsoft's Python execution / debugging flow.
 

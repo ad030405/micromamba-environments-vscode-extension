@@ -24,7 +24,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     configureLocalization((message, ...args) => vscode.l10n.t(message, ...args));
     const log = vscode.window.createOutputChannel('Micromamba', { log: true });
     const service = new Micromamba(log);
-    const selections = new Selections(context.workspaceState);
+    const selections = new Selections(context.globalState, context.workspaceState);
+    await selections.migrate();
     let bridge: PythonBridge;
     const tree = new EnvironmentTree(service, selections);
     const view = vscode.window.createTreeView('micromamba.environments', { treeDataProvider: tree, showCollapseAll: true });
@@ -294,7 +295,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }).catch(report);
         } else { void report(error); }
     }
-    try { await service.discover(true); await bridge.restoreSelections(); await terminals.refresh(); }
+    try { await service.discover(true); }
+    catch (error) { log.warn(String(error)); view.message = (error as Error).message; }
+    try { await bridge.restoreSelections(); await terminals.refresh(); }
     catch (error) { log.warn(String(error)); view.message = (error as Error).message; }
     subscriptions.push(service.onDidChange(() => { view.message = undefined; }));
     updateContext();

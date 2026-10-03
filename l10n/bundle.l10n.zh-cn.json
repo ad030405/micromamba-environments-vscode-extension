@@ -101,5 +101,6 @@
   "Enable Microsoft Python Environments to integrate micromamba interpreters.": "Micromamba 的解释器集成需要启用 Microsoft Python Environments。",
   "Enable and Reload": "启用并重新加载",
   "Micromamba Environments started.": "Micromamba Environments 已启动。",
-  "Environment YAML": "环境 YAML"
+  "Environment YAML": "环境 YAML",
+  "Saved Micromamba environment is unavailable for {0}: {1}. The selection has been kept.": "项目 {0} 保存的 Micromamba 环境暂不可用：{1}。已保留该选择记录。"
 }

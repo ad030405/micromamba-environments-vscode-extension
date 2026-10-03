@@ -2,12 +2,20 @@
   "name": "micromamba-environments",
   "displayName": "Micromamba Environments",
   "description": "%extension.description%",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "ad070809",
   "author": {
     "name": "ad070809"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ad030405/micromamba-environments-vscode-extension.git"
+  },
+  "homepage": "https://github.com/ad030405/micromamba-environments-vscode-extension#readme",
+  "bugs": {
+    "url": "https://github.com/ad030405/micromamba-environments-vscode-extension/issues"
+  },
   "engines": {
     "vscode": "^1.110.0"
   },
@@ -46,7 +54,7 @@
     "test": "npm run compile && node --test out/test/*.test.js",
     "vscode:prepublish": "npm run compile",
     "prepackage": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\"",
-    "package": "vsce package --allow-missing-repository --out dist/micromamba-environments-1.0.0.vsix"
+    "package": "vsce package --allow-missing-repository --out dist/micromamba-environments-1.1.0.vsix"
   },
   "dependencies": {
     "@vscode/python-environments": "1.4.0"
