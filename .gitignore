@@ -2,6 +2,7 @@ node_modules/
 out/
 dist/
 .tools/
+.vscode/
 .env
 .env.*
 *.vsix
