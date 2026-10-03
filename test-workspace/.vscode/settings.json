@@ -1,0 +1,11 @@
+{
+  "micromamba.executablePath": "D:\\develop\\micromamba\\micromamba.exe",
+  "micromamba.rootPrefix": "D:\\develop\\micromamba",
+  "micromamba.autoActivateTerminal": false,
+  "python.useEnvironmentsExtension": true,
+  "python-envs.terminal.autoActivationType": "off",
+  "extensions.ignoreRecommendations": true,
+  "workbench.startupEditor": "none",
+  "python-envs.defaultEnvManager": "micromamba-tools.micromamba-environments:micromamba",
+  "python-envs.defaultPackageManager": "micromamba-tools.micromamba-environments:micromamba"
+}

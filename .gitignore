@@ -1,0 +1,13 @@
+node_modules/
+out/
+dist/
+.tools/
+.env
+.env.*
+*.vsix
+*.log
+test-workspace/*-results.json
+test-workspace/official-*.json
+test-workspace/terminal-*.json
+test-workspace/debug-*.json
+VERIFICATION.md

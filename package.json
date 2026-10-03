@@ -1,0 +1,304 @@
+{
+  "name": "micromamba-environments",
+  "displayName": "Micromamba Environments",
+  "description": "%extension.description%",
+  "version": "1.0.0",
+  "publisher": "ad070809",
+  "author": {
+    "name": "ad070809"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.110.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "python",
+    "micromamba",
+    "conda",
+    "environments"
+  ],
+  "main": "./out/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "extensionDependencies": [
+    "ms-python.python",
+    "ms-python.vscode-python-envs"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "check": "tsc -p . --noEmit",
+    "test": "npm run compile && node --test out/test/*.test.js",
+    "vscode:prepublish": "npm run compile",
+    "prepackage": "node -e \"require('node:fs').mkdirSync('dist', { recursive: true })\"",
+    "package": "vsce package --allow-missing-repository --out dist/micromamba-environments-1.0.0.vsix"
+  },
+  "dependencies": {
+    "@vscode/python-environments": "1.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.110.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.9.0"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "micromamba",
+          "title": "Micromamba",
+          "icon": "media/micromamba.svg"
+        }
+      ]
+    },
+    "views": {
+      "micromamba": [
+        {
+          "id": "micromamba.environments",
+          "name": "%view.environments.name%"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "micromamba.environments",
+        "contents": "%view.environments.welcome%",
+        "when": "!micromamba.hasEnvironments"
+      }
+    ],
+    "commands": [
+      {
+        "command": "micromamba.refresh",
+        "title": "%command.refresh.title%",
+        "category": "Micromamba",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "micromamba.create",
+        "title": "%command.create.title%",
+        "category": "Micromamba",
+        "icon": "$(add)"
+      },
+      {
+        "command": "micromamba.import",
+        "title": "%command.import.title%",
+        "category": "Micromamba",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "micromamba.select",
+        "title": "%command.select.title%",
+        "category": "Micromamba",
+        "icon": "$(check)"
+      },
+      {
+        "command": "micromamba.terminal",
+        "title": "%command.terminal.title%",
+        "category": "Micromamba",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "micromamba.activateTerminal",
+        "title": "%command.activateTerminal.title%",
+        "category": "Micromamba"
+      },
+      {
+        "command": "micromamba.install",
+        "title": "%command.install.title%",
+        "category": "Micromamba",
+        "icon": "$(package)"
+      },
+      {
+        "command": "micromamba.update",
+        "title": "%command.update.title%",
+        "category": "Micromamba",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "micromamba.removePackage",
+        "title": "%command.removePackage.title%",
+        "category": "Micromamba",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "micromamba.remove",
+        "title": "%command.remove.title%",
+        "category": "Micromamba",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "micromamba.export",
+        "title": "%command.export.title%",
+        "category": "Micromamba",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "micromamba.runFile",
+        "title": "%command.runFile.title%",
+        "category": "Micromamba",
+        "icon": "$(play)"
+      },
+      {
+        "command": "micromamba.configure",
+        "title": "%command.configure.title%",
+        "category": "Micromamba",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "micromamba.showOutput",
+        "title": "%command.showOutput.title%",
+        "category": "Micromamba",
+        "icon": "$(output)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "micromamba.refresh",
+          "when": "view == micromamba.environments",
+          "group": "navigation@1"
+        },
+        {
+          "command": "micromamba.create",
+          "when": "view == micromamba.environments",
+          "group": "navigation@2"
+        },
+        {
+          "command": "micromamba.import",
+          "when": "view == micromamba.environments",
+          "group": "navigation@3"
+        },
+        {
+          "command": "micromamba.configure",
+          "when": "view == micromamba.environments",
+          "group": "settings"
+        },
+        {
+          "command": "micromamba.showOutput",
+          "when": "view == micromamba.environments",
+          "group": "settings"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "micromamba.select",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaPython/",
+          "group": "inline@1"
+        },
+        {
+          "command": "micromamba.terminal",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaEnvironment/",
+          "group": "inline@2"
+        },
+        {
+          "command": "micromamba.install",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaEnvironment/",
+          "group": "packages@1"
+        },
+        {
+          "command": "micromamba.update",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaEnvironment/",
+          "group": "packages@2"
+        },
+        {
+          "command": "micromamba.export",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaEnvironment/",
+          "group": "manage@1"
+        },
+        {
+          "command": "micromamba.remove",
+          "when": "view == micromamba.environments && viewItem =~ /micromambaRemovable/",
+          "group": "manage@2"
+        },
+        {
+          "command": "micromamba.removePackage",
+          "when": "view == micromamba.environments && viewItem == micromambaPackage",
+          "group": "inline"
+        }
+      ],
+      "editor/title/run": [
+        {
+          "command": "micromamba.runFile",
+          "when": "resourceLangId == python && resourceExtname != .pyi && micromamba.hasSelection && !isInDiffEditor && !virtualWorkspace && shellExecutionSupported && isWorkspaceTrusted",
+          "group": "navigation@10"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Micromamba",
+      "properties": {
+        "micromamba.executablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "%configuration.executablePath.description%"
+        },
+        "micromamba.rootPrefix": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "description": "%configuration.rootPrefix.description%"
+        },
+        "micromamba.channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": [
+            "conda-forge"
+          ],
+          "description": "%configuration.channels.description%"
+        },
+        "micromamba.autoActivateTerminal": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.autoActivateTerminal.description%"
+        },
+        "micromamba.terminalActivationMode": {
+          "type": "string",
+          "enum": [
+            "silent",
+            "command"
+          ],
+          "default": "silent",
+          "enumDescriptions": [
+            "%configuration.terminalActivationMode.silent%",
+            "%configuration.terminalActivationMode.command%"
+          ],
+          "description": "%configuration.terminalActivationMode.description%"
+        },
+        "micromamba.terminalActivationDelay": {
+          "type": "number",
+          "default": 1500,
+          "minimum": 200,
+          "maximum": 10000,
+          "description": "%configuration.terminalActivationDelay.description%"
+        },
+        "micromamba.commandTimeout": {
+          "type": "number",
+          "default": 60,
+          "minimum": 5,
+          "description": "%configuration.commandTimeout.description%"
+        }
+      }
+    }
+  },
+  "l10n": "./l10n"
+}

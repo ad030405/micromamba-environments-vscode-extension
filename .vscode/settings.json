@@ -1,0 +1,4 @@
+{
+    "python-envs.defaultEnvManager": "ad070809.micromamba-environments:micromamba",
+    "python-envs.defaultPackageManager": "ad070809.micromamba-environments:micromamba"
+}
